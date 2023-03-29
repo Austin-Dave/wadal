@@ -1,0 +1,157 @@
+///video room that works
+
+
+
+import React, { useEffect, useRef, useState } from "react";
+import io from "socket.io-client";
+import Peer from "simple-peer";
+import "./Videoroom.css";
+
+const Video = ({ peer }) => {
+  const ref = useRef();
+
+  useEffect(() => {
+    peer.on("stream", (stream) => {
+      ref.current.srcObject = stream;
+    });
+  }, [peer]);
+
+  return <video className="peerVideo" autoPlay playsInline ref={ref} />;
+};
+
+const VideoRoom = () => {
+  const [peers, setPeers] = useState([]);
+  const [audience, setAudience] = useState([]);
+  const [hostRequests, setHostRequests] = useState([]);
+  const [host, setHost] = useState(null);
+  const socketRef = useRef();
+  const userVideoRef = useRef();
+  const peersRef = useRef([]);
+  const roomID = "jokes-room";
+
+  useEffect(() => {
+    socketRef.current = io.connect("/");
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        userVideoRef.current.srcObject = stream;
+
+        socketRef.current.emit("join room", roomID);
+
+        socketRef.current.on("all users", (users) => {
+          const peers = users.map((userID) => {
+            const peer = createPeer(userID, socketRef.current.id, stream);
+            peersRef.current.push({ peerID: userID, peer });
+            return peer;
+          });
+          setPeers(peers);
+        });
+
+        socketRef.current.on("user joined", (payload) => {
+          const peer = addPeer(payload.signal, payload.callerID, stream);
+          peersRef.current.push({ peerID: payload.callerID, peer });
+          setPeers((users) => [...users, peer]);
+        });
+
+        socketRef.current.on("receiving returned signal", (payload) => {
+          const item = peersRef.current.find((p) => p.peerID === payload.id);
+          item.peer.signal(payload.signal);
+        });
+
+        socketRef.current.on("user left", (id) => {
+          const peerObj = peersRef.current.find((p) => p.peerID === id);
+          if (peerObj) {
+            peerObj.peer.destroy();
+          }
+          const peers = peersRef.current.filter((p) => p.peerID !== id);
+          peersRef.current = peers;
+          setPeers(peers);
+        });
+
+        socketRef.current.on("update audience", (audienceList) => {
+          setAudience(audienceList);
+        });
+
+        socketRef.current.on("update host requests", (requests) => {
+          setHostRequests(requests);
+        });
+
+        socketRef.current.on("update host", (newHost) => {
+          setHost(newHost);
+        });
+      });
+  }, []);
+
+  const createPeer = (userToSignal, callerID, stream) => {
+    const peer = new Peer({
+      initiator: true,
+      trickle: false,
+      stream,
+    });
+
+    peer.on("signal", (signal) => {
+      socketRef.current.emit("sending signal", {
+        userToSignal,
+        callerID,
+        signal,
+      });
+    });
+
+    return peer;
+  };
+  const addPeer = (incomingSignal, callerID, stream) => {
+    const peer = new Peer({
+      initiator: false,
+      trickle: false,
+      stream,
+    });
+
+    peer.on("signal", (signal) => {
+      socketRef.current.emit("returning signal", { signal, callerID });
+    });
+
+    peer.signal(incomingSignal);
+
+    return peer;
+  };
+
+  const handleHostRequest = () => {
+    socketRef.current.emit("host request");
+  };
+
+  const acceptNextHost = () => {
+    if (hostRequests.length > 0) {
+      const nextHost = hostRequests.shift();
+      setHost(nextHost);
+      setHostRequests([...hostRequests]);
+      socketRef.current.emit("accept host", nextHost);
+    }
+  };
+
+  return (
+    <div className="video-container">
+      <video
+        className="userVideo"
+        muted
+        autoPlay
+        playsInline
+        ref={userVideoRef}
+      ></video>
+      {peers.map((peer, index) => (
+        <Video key={index} peer={peer} />
+      ))}
+      <div className="audience-container">
+        {audience.map((member, index) => (
+          <div className="audience-member" key={index}>
+            {member.name}
+          </div>
+        ))}
+      </div>
+      <button onClick={handleHostRequest}>Request to be Host</button>
+      {socketRef.current && host === socketRef.current.id && (
+        <button onClick={acceptNextHost}>Accept Next Host</button>
+      )}
+    </div>
+  );
+};
+export default VideoRoom;
