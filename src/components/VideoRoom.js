@@ -894,7 +894,7 @@ const VideoRoom = () => {
   }, []);
 
   useEffect(() => {
-    socketRef.current = io.connect("/");
+    socketRef.current = io.connect("http://localhost:8000");
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
