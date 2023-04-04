@@ -894,7 +894,7 @@ const VideoRoom = () => {
   }, []);
 
   useEffect(() => {
-    socketRef.current = io.connect("http://localhost:8000");
+    socketRef.current = io.connect("https://wadal.vercel.app");
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {

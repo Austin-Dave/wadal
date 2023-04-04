@@ -28,12 +28,29 @@ const express = require("express");
 const http = require("http");
 const socket = require("socket.io");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const io = socket(server);
+
+// Add cors configuration for Socket.IO
+const io = socket(server, {
+  cors: {
+    origin: "https://wadal.vercel.app", // Replace with your client URL, e.g., "https://wadal.vercel.app"
+    methods: ["GET", "POST"],
+  },
+});
 
 const PORT = process.env.PORT || 8000;
+
+// Add cors configuration for Express app
+app.use(
+  cors({
+    origin: "https://wadal.vercel.app", // Replace with your client URL, e.g., "https://wadal.vercel.app"
+    methods: ["GET", "POST"],
+  })
+);
+app.use(express.static(path.join(__dirname, "build")));
 
 app.use(express.static(path.join(__dirname, "build")));
 
