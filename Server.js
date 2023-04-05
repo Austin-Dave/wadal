@@ -36,7 +36,7 @@ const server = http.createServer(app);
 // Add cors configuration for Socket.IO
 const io = socket(server, {
   cors: {
-    origin: "https://wadal.vercel.app", // Replace with your client URL, e.g., "https://wadal.vercel.app"
+    origin: ["https://wadal.vercel.app", "https://wadal.netlify.app/"], // Replace with your client URL, e.g., "https://wadal.vercel.app"
     methods: ["GET", "POST"],
   },
 });
@@ -46,7 +46,7 @@ const PORT = process.env.PORT || 8000;
 // Add cors configuration for Express app
 app.use(
   cors({
-    origin: "https://wadal.vercel.app", // Replace with your client URL, e.g., "https://wadal.vercel.app"
+    origin: ["https://wadal.vercel.app", "https://wadal.netlify.app/"], // Replace with your client URL, e.g., "https://wadal.vercel.app"
     methods: ["GET", "POST"],
   })
 );
